@@ -1,91 +1,33 @@
 package weather
 
 import (
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
 	"net/http"
-	"regexp"
-	"strconv"
-	"strings"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 // Weather weather info
 type Weather struct {
 	City string
-	Tem1 string
-	Tem2 string
+	Tem  string
 	Wea  string
-}
-
-type jsonTemplate struct {
-	City string `json:"city"`
-	Data []struct {
-		Wea  string `json:"wea"`
-		Tem1 string `json:"tem1"`
-		Tem2 string `json:"tem2"`
-	} `json:"data"`
 }
 
 // GetWeather get weather info
 func GetWeather() (*Weather, error) {
-	ip, err := getCurrentIP()
+	req, _ := http.NewRequest("GET", "http://www.baidu.com/s?word=天气", nil)
+	req.Header["User-Agent"] = []string{"Mozilla/5.0 (iPhone; CPU iPhone OS 12_1_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.0 Mobile/15E148 Safari/604.1"}
+	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
-	return getWeatherByIP(ip)
-}
-
-func getCurrentIP() (string, error) {
-	b, err := httpGet("http://whatismyip.akamai.com")
-	if err != nil {
-		return "", err
-	}
-	return string(b), nil
-}
-
-func getWeatherByIP(ip string) (*Weather, error) {
-	jsonData, err := httpGet(fmt.Sprintf("https://www.tianqiapi.com/api/?version=v1&ip=%s", ip))
+	doc, err := goquery.NewDocumentFromResponse(res)
 	if err != nil {
 		return nil, err
 	}
-	t := jsonTemplate{}
-	err = json.Unmarshal(jsonData, &t)
-	if err != nil {
-		return nil, err
-	}
-	return &Weather{
-		City: quoteToCharacter(t.City),
-		Tem1: quoteToCharacter(t.Data[0].Tem1),
-		Tem2: quoteToCharacter(t.Data[0].Tem2),
-		Wea:  quoteToCharacter(t.Data[0].Wea),
-	}, nil
-}
-
-func httpGet(url string) ([]byte, error) {
-	res, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-	b, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-	return b, nil
-}
-
-func quoteToCharacter(str string) string {
-	r, err := regexp.Compile("\\\\u[a-fA-F0-9]{4}")
-	if err != nil {
-		panic(err)
-	}
-	return r.ReplaceAllStringFunc(str, func(s string) string {
-		unicodeStr := strings.TrimPrefix(s, "\\u")
-		c, err := strconv.ParseInt(unicodeStr, 16, 32)
-		if err != nil {
-			return "-"
-		}
-		return fmt.Sprintf("%c", c)
-	})
+	const selectPrefix = "article > section > div.c-row-tile > div.ms-weather-top.c-gap-inner-bottom"
+	tem := doc.Find(selectPrefix + " > div.ms-weather-main.ms-weather-main-wrapper > div.ms-weather-main-temp").Text()
+	wea := doc.Find(selectPrefix + " > div.ms-weather-main.ms-weather-main-wrapper > div.ms-weather-main-wind.c-line-clamp1 > span:nth-child(1)").Text()
+	city := doc.Find(selectPrefix + " > section.ms-weather-btns > div.c-row.c-row-tight > div.WA_LOG_OTHER.c-span7 > div > span").Text()
+	return &Weather{city, tem, wea}, nil
 }
