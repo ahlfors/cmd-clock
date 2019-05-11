@@ -62,9 +62,10 @@ gobuild() {
 	target_dir=$DIST_DIR/$1/$2
 	rm -rf $target_dir
 	if [ -z "$build_native" ]; then
-		other_env="GOOS=$1 GOARCH=$2 "
+		export GOOS=$1
+		export GOARCH=$2
 	fi
-	${other_env}go build -o $target_dir/${APP_NAME}${append_suffix}${ext} \
+	go build -o $target_dir/${APP_NAME}${append_suffix}${ext} \
 	-ldflags \
 	"\
 	-s -w \
