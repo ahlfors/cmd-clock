@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	largeWidth  = 60
-	largeHeight = 20
+	largeWidth  = 30
+	largeHeight = 10
 )
 
 func printLarge(date time.Time, wea *weather.Weather, width, height int) {
