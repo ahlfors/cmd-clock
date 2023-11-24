@@ -11,7 +11,7 @@ import (
 	"github.com/lonord/cmd-clock/printer"
 )
 
-var (
+var (	
 	appVersion = "dev"
 	buildTime  = "unknow"
 )
@@ -34,21 +34,37 @@ func main() {
 }
 
 func run() error {
-	defer resetCursor()
-
+    defer resetCursor()
 	sigChan, timeTimer := initializeChannels()
-
-	currentTime := time.Now()
-
-    if err := printer.Print(currentTime); err != nil {
-        return err
-    }
-
-	lastTime := currentTime
-
-	return manageEvents(sigChan, timeTimer, &lastTime)
+	var lastNow *time.Time
+    currentTime := time.Now()
+    firstNow := currentTime.Add(time.Hour * 8)
+	lastNow = &firstNow
+	err := printer.Print(firstNow)
+	if err != nil {
+		return err
+	}
+	for {
+		select {
+		case <-timeTimer.C:
+			currentTime := time.Now()
+			now := currentTime.Add(time.Hour * 8)
+			if lastNow.Minute() != now.Minute() {
+				err := printer.Print(now)
+				if err != nil {
+					fmt.Println(err)
+				}
+				lastNow = &now
+			}
+			timeTimer.Reset(timeInterval)
+		case sig := <-sigChan:
+			switch sig {
+			case syscall.SIGHUP, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM:
+				return nil
+			}
+		}
+	}
 }
-
 
 // Reset cursor to default state
 func resetCursor() {
@@ -61,28 +77,4 @@ func initializeChannels() (chan os.Signal, *time.Timer) {
     signal.Notify(signalChan)
 
     return signalChan, time.NewTimer(timeInterval)
-}
-
-// Manage the incoming events from timer and signal channels
-func manageEvents(sigChan chan os.Signal, timeTimer *time.Timer, lastTime *time.Time) error {
-    for {
-        select {
-        case <-timeTimer.C:
-            currentTime := time.Now()
-
-            if lastTime.Minute() != currentTime.Minute() {
-                if err := printer.Print(currentTime); err != nil {
-                    fmt.Println(err)
-                }
-
-                lastTime = &currentTime
-            }
-
-            timeTimer.Reset(timeInterval)
-        case sig := <-sigChan:
-            if sig == syscall.SIGHUP || sig == syscall.SIGINT || sig == syscall.SIGQUIT || sig == syscall.SIGTERM {
-                return nil
-            }
-        }
-    }
 }
