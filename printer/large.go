@@ -3,8 +3,6 @@ package printer
 import (
 	"fmt"
 	"time"
-
-	"github.com/lonord/cmd-clock/weather"
 )
 
 const (
@@ -12,14 +10,13 @@ const (
 	largeHeight = 10
 )
 
-func printLarge(date time.Time, wea *weather.Weather, width, height int) {
+func printLarge(date time.Time, width, height int) {
 	spaceTop := (height - 7) / 2
 	printReturn(spaceTop)
 	printTimeLarge(date, width)
 	printReturn(1)
 	printDateLarge(date, width)
 	printReturn(1)
-	printWeatherLarge(wea, width)
 }
 
 func printTimeLarge(date time.Time, width int) {
@@ -45,16 +42,6 @@ func printDateLarge(date time.Time, width int) {
 	spaceLeft := (width + 1 - len(d)) / 2
 	printSpace(spaceLeft)
 	printString(d)
-	printReturn(1)
-}
-
-func printWeatherLarge(wea *weather.Weather, width int) {
-	if wea != nil {
-		d := fmt.Sprintf("%s %s°C %s", wea.City, wea.Tem, wea.Wea)
-		spaceLeft := (width + 1 - charLen(d) - charLen(wea.City) - charLen(wea.Wea)) / 2
-		printSpace(spaceLeft)
-		printString(d)
-	}
 	printReturn(1)
 }
 
