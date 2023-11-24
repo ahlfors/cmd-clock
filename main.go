@@ -12,7 +12,6 @@ import (
 )
 
 var (
-	appName    = "cmd-clock"
 	appVersion = "dev"
 	buildTime  = "unknow"
 )
@@ -35,38 +34,55 @@ func main() {
 }
 
 func run() error {
-	// var
-	var lastNow *time.Time
-	// recover cursor
-	defer os.Stdout.WriteString("\033[?25h\033c")
-	// chan and timer
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan)
-	timeTimer := time.NewTimer(timeInterval)
-	// first action
-	firstNow := time.Now()
-	lastNow = &firstNow
-	err := printer.Print(firstNow)
-	if err != nil {
-		return err
-	}
-	for {
-		select {
-		case <-timeTimer.C:
-			now := time.Now()
-			if lastNow.Minute() != now.Minute() {
-				err := printer.Print(now)
-				if err != nil {
-					fmt.Println(err)
-				}
-				lastNow = &now
-			}
-			timeTimer.Reset(timeInterval)
-		case sig := <-signalChan:
-			switch sig {
-			case syscall.SIGHUP, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM:
-				return nil
-			}
-		}
-	}
+	defer resetCursor()
+
+	sigChan, timeTimer := initializeChannels()
+
+	currentTime := time.Now()
+
+    if err := printer.Print(currentTime); err != nil {
+        return err
+    }
+
+	lastTime := currentTime
+
+	return manageEvents(sigChan, timeTimer, &lastTime)
+}
+
+
+// Reset cursor to default state
+func resetCursor() {
+    os.Stdout.WriteString("\033[?25h\033c")
+}
+
+// Initialize the channels for signals and timer
+func initializeChannels() (chan os.Signal, *time.Timer) {
+    signalChan := make(chan os.Signal, 1)
+    signal.Notify(signalChan)
+
+    return signalChan, time.NewTimer(timeInterval)
+}
+
+// Manage the incoming events from timer and signal channels
+func manageEvents(sigChan chan os.Signal, timeTimer *time.Timer, lastTime *time.Time) error {
+    for {
+        select {
+        case <-timeTimer.C:
+            currentTime := time.Now()
+
+            if lastTime.Minute() != currentTime.Minute() {
+                if err := printer.Print(currentTime); err != nil {
+                    fmt.Println(err)
+                }
+
+                lastTime = &currentTime
+            }
+
+            timeTimer.Reset(timeInterval)
+        case sig := <-sigChan:
+            if sig == syscall.SIGHUP || sig == syscall.SIGINT || sig == syscall.SIGQUIT || sig == syscall.SIGTERM {
+                return nil
+            }
+        }
+    }
 }
