@@ -34,23 +34,22 @@ func main() {
 }
 
 func run() error {
-    defer resetCursor()
-	sigChan, timeTimer := initializeChannels()
 	var lastNow *time.Time
-    currentTime := time.Now()
-    firstNow := currentTime.Add(time.Hour * 8)
+	defer resetCursor()
+	sigChan, timeTimer := initializeChannels()
+    firstNow := time.Now()
 	lastNow = &firstNow
-	err := printer.Print(firstNow)
+	err := printer.Print(firstNow.Add(time.Hour * 8))
 	if err != nil {
 		return err
 	}
 	for {
 		select {
 		case <-timeTimer.C:
-			currentTime := time.Now()
-			now := currentTime.Add(time.Hour * 8)
+			now := time.Now()
+			// now := currentTime.Add(time.Hour * 8)
 			if lastNow.Minute() != now.Minute() {
-				err := printer.Print(now)
+				err := printer.Print(now.Add(time.Hour * 8))
 				if err != nil {
 					fmt.Println(err)
 				}
